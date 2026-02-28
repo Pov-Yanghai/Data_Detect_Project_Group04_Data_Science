@@ -92,7 +92,7 @@ export function DashboardSidebar() {
           <img
           src="/logo.png"
           alt="DataClean Logo"
-          className="h-20 w-auto object-contain border border-gray-300 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-300"
+          className="h-25 w-50 object-contain border border-gray-300 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-300"
 />
         )}
         <Button
