@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { analyzeData } from '@/lib/api'
 
 interface UploadedFile {
@@ -36,7 +36,7 @@ export default function DistributionPage() {
 
         const analysisResult = await analyzeData(file.filepath)
         setAnalysis(analysisResult)
-        
+
         // Set first numeric column as selected
         const numericCols = Object.entries(analysisResult.distributions)
           .filter(([_, data]: [string, any]) => data.count > 0)
@@ -78,23 +78,11 @@ export default function DistributionPage() {
 
   const distributions = analysis.distributions
   const distributionEntries = Object.entries(distributions).filter(([_, data]: [string, any]) => data.count > 0)
-  
-  const selectedDist = selectedColumn && distributions[selectedColumn]
 
-  // Create histogram data (10 bins)
-  const histogramData = selectedDist
-    ? Array.from({ length: 10 }, (_, i) => {
-        const min = selectedDist.min
-        const max = selectedDist.max
-        const range = (max - min) / 10
-        const binMin = min + i * range
-        const binMax = min + (i + 1) * range
-        return {
-          range: `${binMin.toFixed(0)}-${binMax.toFixed(0)}`,
-          frequency: Math.floor((range / (max - min)) * selectedDist.count),
-        }
-      })
-    : []
+  const selectedDist = selectedColumn ? distributions[selectedColumn] : null
+
+  // ✅ Use real histogram data from backend
+  const histogramData: { range: string; frequency: number }[] = selectedDist?.histogram ?? []
 
   return (
     <div className="space-y-6 p-6">
@@ -173,22 +161,59 @@ export default function DistributionPage() {
             </Card>
           </div>
 
-          {/* Distribution Chart */}
+          {/* Distribution Chart — fixed with explicit pixel height wrapper */}
           <Card>
             <CardHeader>
               <CardTitle>Distribution Histogram</CardTitle>
               <CardDescription>Frequency distribution of {selectedColumn}</CardDescription>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={histogramData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="range" angle={-45} textAnchor="end" height={100} />
-                  <YAxis />
-                  <Tooltip />
-                  <Bar dataKey="frequency" fill="#3b82f6" radius={[8, 8, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+              {histogramData.length > 0 ? (
+                <div style={{ width: '100%', height: 350 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={histogramData}
+                      margin={{ top: 10, right: 20, left: 20, bottom: 80 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis
+                        dataKey="range"
+                        angle={-40}
+                        textAnchor="end"
+                        interval={0}
+                        tick={{ fontSize: 11 }}
+                      />
+                      <YAxis
+                        allowDecimals={false}
+                        tick={{ fontSize: 12 }}
+                        label={{
+                          value: 'Frequency',
+                          angle: -90,
+                          position: 'insideLeft',
+                          offset: -5,
+                          style: { fontSize: 12 },
+                        }}
+                      />
+                      <Tooltip
+                        cursor={{ fill: 'rgba(59,130,246,0.08)' }}
+                        formatter={(value: any) => [value.toLocaleString(), 'Frequency']}
+                        labelFormatter={(label) => `Range: ${label}`}
+                      />
+                      <Bar
+                        dataKey="frequency"
+                        fill="#3b82f6"
+                        radius={[4, 4, 0, 0]}
+                        maxBarSize={60}
+                        isAnimationActive={true}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center h-48 text-muted-foreground text-sm">
+                  No histogram data available for this column
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -199,32 +224,30 @@ export default function DistributionPage() {
               <CardDescription>Complete statistical summary for {selectedColumn}</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Count</p>
-                    <p className="text-lg font-medium text-foreground">{selectedDist.count}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Min</p>
-                    <p className="text-lg font-medium text-foreground">{selectedDist.min.toFixed(2)}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Max</p>
-                    <p className="text-lg font-medium text-foreground">{selectedDist.max.toFixed(2)}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Range</p>
-                    <p className="text-lg font-medium text-foreground">{(selectedDist.max - selectedDist.min).toFixed(2)}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Variance</p>
-                    <p className="text-lg font-medium text-foreground">{(selectedDist.std ** 2).toFixed(2)}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Kurtosis</p>
-                    <p className="text-lg font-medium text-foreground">{selectedDist.kurtosis.toFixed(2)}</p>
-                  </div>
+              <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
+                <div>
+                  <p className="text-sm text-muted-foreground">Count</p>
+                  <p className="text-lg font-medium text-foreground">{selectedDist.count.toLocaleString()}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Min</p>
+                  <p className="text-lg font-medium text-foreground">{selectedDist.min.toFixed(2)}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Max</p>
+                  <p className="text-lg font-medium text-foreground">{selectedDist.max.toFixed(2)}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Range</p>
+                  <p className="text-lg font-medium text-foreground">{(selectedDist.max - selectedDist.min).toFixed(2)}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Variance</p>
+                  <p className="text-lg font-medium text-foreground">{(selectedDist.std ** 2).toFixed(2)}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Kurtosis</p>
+                  <p className="text-lg font-medium text-foreground">{selectedDist.kurtosis.toFixed(2)}</p>
                 </div>
               </div>
             </CardContent>
@@ -236,21 +259,10 @@ export default function DistributionPage() {
               <CardTitle className="text-base">About Skewness</CardTitle>
             </CardHeader>
             <CardContent className="text-sm text-muted-foreground space-y-2">
-              <p>
-                <span className="font-medium text-foreground">Skewness:</span> Measures asymmetry in distribution.
-              </p>
-              <p>
-                <span className="font-medium text-foreground">Positive Skew:</span> Tail extends to the right, mean {'>'}
-                median
-              </p>
-              <p>
-                <span className="font-medium text-foreground">Negative Skew:</span> Tail extends to the left, mean {'<'}
-                median
-              </p>
-              <p>
-                <span className="font-medium text-foreground">Categories:</span> Normal: |skew| {'<'} 0.5, Moderate: 0.5-1,
-                High: {'>'} 1
-              </p>
+              <p><span className="font-medium text-foreground">Skewness:</span> Measures asymmetry in distribution.</p>
+              <p><span className="font-medium text-foreground">Positive Skew:</span> Tail extends to the right, mean {'>'} median</p>
+              <p><span className="font-medium text-foreground">Negative Skew:</span> Tail extends to the left, mean {'<'} median</p>
+              <p><span className="font-medium text-foreground">Categories:</span> Normal: |skew| {'<'} 0.5, Moderate: 0.5–1, High: {'>'} 1</p>
             </CardContent>
           </Card>
         </>
@@ -277,7 +289,11 @@ export default function DistributionPage() {
                 </TableHeader>
                 <TableBody>
                   {distributionEntries.map(([col, data]: [string, any]) => (
-                    <TableRow key={col} className="cursor-pointer hover:bg-muted" onClick={() => setSelectedColumn(col)}>
+                    <TableRow
+                      key={col}
+                      className="cursor-pointer hover:bg-muted"
+                      onClick={() => setSelectedColumn(col)}
+                    >
                       <TableCell className="font-medium">{col}</TableCell>
                       <TableCell>{data.mean.toFixed(2)}</TableCell>
                       <TableCell>{data.median.toFixed(2)}</TableCell>

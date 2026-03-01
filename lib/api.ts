@@ -28,11 +28,29 @@ export interface AnalysisResult {
     total_missing: number;
   };
   outliers: {
-    iqr: Record<string, any>;
-    zscore: Record<string, any>;
+    iqr: {
+      method: string;
+      columns: Record<string, any>;
+      total_outliers: number;
+    };
+    zscore: {
+      method: string;
+      columns: Record<string, any>;
+      total_outliers: number;
+    };
   };
   distributions: Record<string, any>;
   recommendations: string[];
+}
+
+export interface CleanResponse {
+  success: boolean;
+  summary: string;
+  originalRows: number;
+  cleanedRows: number;
+  removedRows: number;
+  method: string;
+  filepath: string;
 }
 
 export interface TrainingResult {
@@ -40,18 +58,8 @@ export interface TrainingResult {
   training_samples: number;
   test_samples: number;
   metrics: {
-    train: {
-      mse: number;
-      rmse: number;
-      mae: number;
-      r2: number;
-    };
-    test: {
-      mse: number;
-      rmse: number;
-      mae: number;
-      r2: number;
-    };
+    train: { mse: number; rmse: number; mae: number; r2: number };
+    test:  { mse: number; rmse: number; mae: number; r2: number };
   };
   predictions: Array<{
     actual: number;
@@ -72,8 +80,8 @@ export async function uploadFile(file: File): Promise<UploadResponse> {
   });
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'File upload failed');
+    const error = await response.json().catch(() => ({ detail: 'File upload failed' }));
+    throw new Error(error.detail || error.error || 'File upload failed');
   }
 
   return response.json();
@@ -83,45 +91,58 @@ export async function analyzeData(filepath: string): Promise<AnalysisResult> {
   const response = await fetch(`${API_BASE_URL}/analyze`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      filepath,
-      analysisType: 'full',
-    }),
+    body: JSON.stringify({ filepath, analysisType: 'full' }),
   });
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Analysis failed');
+    const error = await response.json().catch(() => ({ detail: 'Analysis failed' }));
+    throw new Error(error.detail || error.error || 'Analysis failed');
   }
 
-  return response.json().then(res => res.analysis);
+  return response.json();
 }
 
 export async function cleanData(
   filepath: string,
   cleaningMethod: string,
-  columns?: string[]
-): Promise<{
-  cleanedData: Record<string, any>[];
-  summary: string;
-  removedRows: number;
-}> {
+  columns?: string[],   // 
+): Promise<CleanResponse> {
   const response = await fetch(`${API_BASE_URL}/clean`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       filepath,
       cleaningMethod,
-      columns,
+      ...(columns && columns.length > 0 ? { columns } : {}),
     }),
   });
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Data cleaning failed');
+    const error = await response.json().catch(() => ({ detail: 'Data cleaning failed' }));
+    throw new Error(error.detail || error.error || 'Data cleaning failed');
   }
 
   return response.json();
+}
+
+export async function downloadCleanedFile(filepath: string, originalFilename: string): Promise<void> {
+  const response = await fetch(
+    `${API_BASE_URL}/clean/download?filepath=${encodeURIComponent(filepath)}`
+  );
+
+  if (!response.ok) {
+    throw new Error('Download failed');
+  }
+
+  const blob = await response.blob();
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `cleaned_${originalFilename}`;
+  document.body.appendChild(a);
+  a.click();
+  window.URL.revokeObjectURL(url);
+  document.body.removeChild(a);
 }
 
 export async function trainModel(
@@ -133,17 +154,12 @@ export async function trainModel(
   const response = await fetch(`${API_BASE_URL}/train`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      filepath,
-      modelType,
-      features,
-      target,
-    }),
+    body: JSON.stringify({ filepath, modelType, features, target }),
   });
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Model training failed');
+    const error = await response.json().catch(() => ({ detail: 'Model training failed' }));
+    throw new Error(error.detail || error.error || 'Model training failed');
   }
 
   return response.json();
@@ -151,7 +167,7 @@ export async function trainModel(
 
 export async function healthCheck(): Promise<boolean> {
   try {
-    const response = await fetch(`${API_BASE_URL.replace('/api', '')}/api/health`);
+    const response = await fetch(`${API_BASE_URL}/health`);
     return response.ok;
   } catch {
     return false;

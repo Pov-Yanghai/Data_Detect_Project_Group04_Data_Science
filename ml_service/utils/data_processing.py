@@ -73,36 +73,49 @@ def detect_outliers(df: pd.DataFrame, method: str = 'iqr') -> Dict[str, Any]:
     return outliers
 
 def analyze_distribution(df: pd.DataFrame) -> Dict[str, Any]:
-    """Analyze distribution of numeric columns"""
+    """Analyze distribution of numeric columns with real histogram data"""
     numeric_cols = df.select_dtypes(include=[np.number]).columns
     distributions = {}
     
     for col in numeric_cols:
         data = df[col].dropna()
         
-        if len(data) > 0:
-            skewness = float(stats.skew(data))
-            kurtosis = float(stats.kurtosis(data))
-            
-            # Categorize skewness
-            if abs(skewness) < 0.5:
-                skew_category = 'Normal'
-            elif abs(skewness) < 1:
-                skew_category = 'Moderately Skewed'
-            else:
-                skew_category = 'Highly Skewed'
-            
-            distributions[col] = {
-                'mean': float(data.mean()),
-                'median': float(data.median()),
-                'std': float(data.std()),
-                'min': float(data.min()),
-                'max': float(data.max()),
-                'skewness': skewness,
-                'skew_category': skew_category,
-                'kurtosis': kurtosis,
-                'count': int(len(data))
+        if len(data) == 0:
+            continue
+
+        skewness = float(stats.skew(data))
+        kurtosis = float(stats.kurtosis(data))
+        
+        # Categorize skewness
+        if abs(skewness) < 0.5:
+            skew_category = 'Normal'
+        elif abs(skewness) < 1:
+            skew_category = 'Moderately Skewed'
+        else:
+            skew_category = 'Highly Skewed'
+
+        # Real histogram — numpy calculates actual frequencies per bin
+        counts, bin_edges = np.histogram(data, bins=10)
+        histogram = [
+            {
+                'range': f"{bin_edges[i]:.1f}-{bin_edges[i+1]:.1f}",
+                'frequency': int(counts[i])
             }
+            for i in range(len(counts))
+        ]
+        
+        distributions[col] = {
+            'mean': float(data.mean()),
+            'median': float(data.median()),
+            'std': float(data.std()),
+            'min': float(data.min()),
+            'max': float(data.max()),
+            'skewness': skewness,
+            'skew_category': skew_category,
+            'kurtosis': kurtosis,
+            'count': int(len(data)),
+            'histogram': histogram,  # Real histogram data with frequencies per bin
+        }
     
     return distributions
 

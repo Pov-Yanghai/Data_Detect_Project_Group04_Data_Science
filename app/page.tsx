@@ -159,6 +159,7 @@ export default function LandingPage() {
   const [showUploadDialog, setShowUploadDialog] = useState(false)
   const [mounted, setMounted] = useState(false)
   const [activeNav, setActiveNav] = useState('')
+  const [showDemo, setShowDemo] = useState(false)
 
   useEffect(() => {
     const t = setTimeout(() => setMounted(true), 60)
@@ -396,11 +397,13 @@ export default function LandingPage() {
                   Upload Dataset
                 </button>
                 <button
+                  onClick={() => setShowDemo(true)}
                   className="px-8 py-3.5 rounded-xl text-sm font-medium text-slate-300 border border-slate-700 hover:border-blue-600 hover:text-white transition-all duration-200"
                   style={{ fontFamily: "'DM Sans', sans-serif" }}
                 >
                   View Demo →
                 </button>
+               
               </div>
 
               {/* Floating preview card */}
@@ -460,11 +463,134 @@ export default function LandingPage() {
         </div>
 
         <Footer />
+        {showDemo && (
+  <div
+    className="fixed inset-0 z-50 flex items-center justify-center"
+    style={{ animation: 'modal-fade-in 0.3s ease both' }}
+  >
+    {/* Backdrop */}
+    <div
+      className="absolute inset-0"
+      style={{
+        background: 'radial-gradient(ellipse at center, rgba(7,16,32,0.97) 0%, rgba(5,13,26,0.99) 100%)',
+        backdropFilter: 'blur(20px)',
+      }}
+      onClick={() => setShowDemo(false)}
+    />
+
+    {/* Glow orbs behind modal */}
+    <div
+      className="absolute pointer-events-none"
+      style={{
+        width: 600, height: 600,
+        borderRadius: '50%',
+        background: 'radial-gradient(circle, rgba(37,99,235,0.18) 0%, transparent 70%)',
+        filter: 'blur(60px)',
+        top: '50%', left: '50%',
+        transform: 'translate(-50%, -50%)',
+      }}
+    />
+
+    {/* Modal container */}
+    <div
+      className="relative w-full max-w-4xl mx-4 z-10"
+      style={{ animation: 'modal-slide-up 0.35s cubic-bezier(0.16,1,0.3,1) both' }}
+      onClick={e => e.stopPropagation()}
+    >
+      {/* Header bar */}
+      <div
+        className="flex items-center justify-between px-5 py-3 rounded-t-2xl"
+        style={{
+          background: 'rgba(10,22,44,0.95)',
+          borderTop: '1px solid rgba(59,130,246,0.25)',
+          borderLeft: '1px solid rgba(59,130,246,0.25)',
+          borderRight: '1px solid rgba(59,130,246,0.25)',
+          borderBottom: '1px solid rgba(59,130,246,0.1)',
+        }}
+      >
+        {/* Fake traffic lights */}
+        <div className="flex items-center gap-2">
+          <span className="w-3 h-3 rounded-full bg-red-500/70" />
+          <span className="w-3 h-3 rounded-full bg-yellow-500/70" />
+          <span className="w-3 h-3 rounded-full bg-green-500/70" />
+          <span
+            className="ml-3 text-xs text-slate-500"
+            style={{ fontFamily: "'Space Mono', monospace" }}
+          >
+            dataclean — demo.mp4
+          </span>
+        </div>
+
+        {/* Label + close */}
+        <div className="flex items-center gap-4">
+          <span className="dc-pill" style={{ fontSize: '0.65rem', padding: '2px 10px' }}>
+            ▶ Live Preview
+          </span>
+          <button
+            onClick={() => setShowDemo(false)}
+            className="flex items-center gap-1.5 text-slate-500 hover:text-slate-200 transition-colors duration-200 text-xs"
+            style={{ fontFamily: "'DM Sans', sans-serif" }}
+          >
+            <span
+              className="flex items-center justify-center w-5 h-5 rounded-full border border-slate-700 hover:border-slate-500 transition-colors duration-200"
+              style={{ fontSize: '0.6rem' }}
+            >
+              ✕
+            </span>
+            <span>ESC</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Video wrapper */}
+      <div
+        className="relative overflow-hidden rounded-b-2xl"
+        style={{
+          background: '#000',
+          borderLeft: '1px solid rgba(59,130,246,0.25)',
+          borderRight: '1px solid rgba(59,130,246,0.25)',
+          borderBottom: '1px solid rgba(59,130,246,0.25)',
+          boxShadow: '0 32px 80px rgba(0,0,0,0.8), 0 0 60px rgba(37,99,235,0.12)',
+        }}
+      >
+        <video
+          src="/demo.mp4"
+          controls
+          autoPlay
+          className="w-full block"
+          style={{ maxHeight: '70vh' }}
+        />
+      </div>
+
+      {/* Bottom hint */}
+      <p
+        className="text-center mt-4 text-xs text-slate-600"
+        style={{ fontFamily: "'Space Mono', monospace" }}
+      >
+        click outside to dismiss
+      </p>
+    </div>
+
+    {/* Keyframes injected inline */}
+    <style>{`
+      @keyframes modal-fade-in {
+        from { opacity: 0; }
+        to   { opacity: 1; }
+      }
+      @keyframes modal-slide-up {
+        from { opacity: 0; transform: translateY(40px) scale(0.97); }
+        to   { opacity: 1; transform: translateY(0) scale(1); }
+      }
+    `}</style>
+  </div>
+)}
+        
 
         {/* ── File Upload Dialog ── */}
         <FileUploadDialog
           open={showUploadDialog}
           onOpenChange={setShowUploadDialog}
+
         />
       </main>
     </>

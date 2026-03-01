@@ -17,27 +17,19 @@ router.post('/', async (req, res, next) => {
       filepath,
       modelType,
       features,
-      target
+      target,
     }, {
-      timeout: 120000, // 2 min timeout — training can be slow on large files
+      timeout: 120000,
       maxBodyLength: Infinity,
       maxContentLength: Infinity,
     });
 
-    // ✅ Fixed: field names match what train_model() actually returns
-    res.json({
-      success: true,
-      training_samples: mlResponse.data.training_samples,
-      test_samples: mlResponse.data.test_samples,
-      metrics: mlResponse.data.metrics,
-      predictions: mlResponse.data.predictions,
-      feature_importance: mlResponse.data.feature_importance,
-      model_type: mlResponse.data.model_type,
-    });
+    // Pass FastAPI response directly — no wrapping
+    res.json(mlResponse.data);
 
   } catch (err) {
     if (err.response) {
-      console.error('FastAPI error detail:', JSON.stringify(err.response.data, null, 2));
+      console.error('FastAPI error:', JSON.stringify(err.response.data, null, 2));
       return res.status(err.response.status).json({
         success: false,
         error: err.response.data?.detail || 'Training failed'
