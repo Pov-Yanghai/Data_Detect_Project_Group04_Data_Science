@@ -406,26 +406,59 @@ export default function MissingValuesPage() {
         </div>
       )}
 
-      {/* Success + Download */}
-      {successMessage && cleanedFilepath && (
+      {/* Success Message */}
+      {successMessage && (
         <div className="rounded-lg bg-green-50 border border-green-200 p-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <p className="text-green-900 font-medium">✓ {successMessage}</p>
-            <button
-              onClick={handleDownload}
-              disabled={isDownloading}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white text-sm font-medium transition-colors whitespace-nowrap"
-            >
-              {isDownloading ? (
-                <><svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>Downloading...</>
-              ) : '⬇ Download Cleaned CSV'}
-            </button>
-          </div>
+          <p className="text-green-900 font-medium">✓ {successMessage}</p>
         </div>
       )}
 
       {/* ✅ Quality Report — shown after cleaning */}
       {qualityReport && <QualityReport quality={qualityReport} />}
+
+      {/* Download Section - Clean and Professional */}
+      {cleanedFilepath && (
+        <Card className="border-2 border-primary/20 shadow-lg">
+          <CardContent className="pt-6">
+            <div className="flex flex-col items-center justify-center space-y-4 py-4">
+              <div className="rounded-full bg-green-100 p-4">
+                <svg className="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
+                </svg>
+              </div>
+              <div className="text-center space-y-2">
+                <h3 className="text-xl font-semibold text-foreground">Your Cleaned Dataset is Ready</h3>
+                <p className="text-sm text-muted-foreground max-w-md">
+                  Download your processed dataset with all missing values handled according to your selected methods
+                </p>
+              </div>
+              <Button
+                onClick={handleDownload}
+                disabled={isDownloading}
+                size="lg"
+                className="mt-2 min-w-50 h-12 text-base font-medium shadow-md hover:shadow-lg transition-all"
+              >
+                {isDownloading ? (
+                  <span className="flex items-center gap-2">
+                    <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                    </svg>
+                    Downloading...
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-2">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    Download Cleaned Dataset
+                  </span>
+                )}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Summary cards */}
       <div className="grid gap-4 md:grid-cols-3">
@@ -461,26 +494,129 @@ export default function MissingValuesPage() {
         </Card>
       </div>
 
-      {/* Chart */}
+      {/* Chart - Professional Dashboard Style */}
       {chartData.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Missing Values by Column</CardTitle>
-            <CardDescription>Count and percentage of missing values</CardDescription>
+        <Card className="border-2 shadow-sm">
+          <CardHeader className="border-b bg-linear-to-r from-slate-50 to-slate-100/50 dark:from-slate-900 dark:to-slate-800/50">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-xl font-semibold flex items-center gap-2">
+                  <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                  Missing Values by Column
+                </CardTitle>
+                <CardDescription className="mt-1.5">
+                  Distribution of missing data across your dataset columns
+                </CardDescription>
+              </div>
+              <Badge variant="outline" className="text-xs font-mono">
+                {chartData.length} {chartData.length === 1 ? 'column' : 'columns'}
+              </Badge>
+            </div>
           </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} />
-                <YAxis yAxisId="left" />
-                <YAxis yAxisId="right" orientation="right" />
-                <Tooltip />
-                <Legend />
-                <Bar yAxisId="left"  dataKey="missing"    fill="#3b82f6" name="Missing Count" />
-                <Bar yAxisId="right" dataKey="percentage" fill="#f59e0b" name="Percentage (%)" />
-              </BarChart>
-            </ResponsiveContainer>
+          <CardContent className="pt-6">
+            <div className="space-y-6">
+              {/* Chart */}
+              <ResponsiveContainer width="100%" height={350}>
+                <BarChart 
+                  data={chartData} 
+                  margin={{ top: 10, right: 30, left: 10, bottom: 80 }}
+                >
+                  <defs>
+                    <linearGradient id="colorMissing" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.9}/>
+                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.6}/>
+                    </linearGradient>
+                    <linearGradient id="colorPercentage" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.9}/>
+                      <stop offset="95%" stopColor="#f59e0b" stopOpacity={0.6}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" opacity={0.5} />
+                  <XAxis 
+                    dataKey="name" 
+                    angle={-45} 
+                    textAnchor="end" 
+                    height={100}
+                    tick={{ fill: '#6b7280', fontSize: 12 }}
+                    stroke="#9ca3af"
+                  />
+                  <YAxis 
+                    yAxisId="left"
+                    tick={{ fill: '#6b7280', fontSize: 12 }}
+                    stroke="#9ca3af"
+                    label={{ value: 'Missing Count', angle: -90, position: 'insideLeft', style: { fill: '#3b82f6', fontWeight: 600, fontSize: 12 } }}
+                  />
+                  <YAxis 
+                    yAxisId="right" 
+                    orientation="right"
+                    tick={{ fill: '#6b7280', fontSize: 12 }}
+                    stroke="#9ca3af"
+                    label={{ value: 'Percentage (%)', angle: 90, position: 'insideRight', style: { fill: '#f59e0b', fontWeight: 600, fontSize: 12 } }}
+                  />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: 'rgba(255, 255, 255, 0.98)', 
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '8px',
+                      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                      padding: '12px'
+                    }}
+                    labelStyle={{ fontWeight: 600, marginBottom: '8px', color: '#111827' }}
+                    cursor={{ fill: 'rgba(59, 130, 246, 0.1)' }}
+                  />
+                  <Legend 
+                    wrapperStyle={{ paddingTop: '20px' }}
+                    iconType="circle"
+                  />
+                  <Bar 
+                    yAxisId="left" 
+                    dataKey="missing" 
+                    fill="url(#colorMissing)" 
+                    name="Missing Count"
+                    radius={[8, 8, 0, 0]}
+                    maxBarSize={60}
+                  />
+                  <Bar 
+                    yAxisId="right" 
+                    dataKey="percentage" 
+                    fill="url(#colorPercentage)" 
+                    name="Percentage (%)"
+                    radius={[8, 8, 0, 0]}
+                    maxBarSize={60}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+
+              {/* Quick Stats Bar */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-4 border-t">
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-blue-600">
+                    {Math.max(...chartData.map((d: any) => d.missing)).toLocaleString()}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">Highest Count</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-amber-600">
+                    {Math.max(...chartData.map((d: any) => d.percentage)).toFixed(1)}%
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">Max Percentage</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-purple-600">
+                    {(chartData.reduce((sum: number, d: any) => sum + d.missing, 0) / chartData.length).toFixed(0)}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">Avg per Column</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-green-600">
+                    {chartData.reduce((sum: number, d: any) => sum + d.missing, 0).toLocaleString()}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">Total Missing</p>
+                </div>
+              </div>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -568,7 +704,7 @@ export default function MissingValuesPage() {
                 onClick={handleApplySelected}
                 disabled={!!applyingMethod || selectedCount === 0}
                 size="lg"
-                className="min-w-[160px]"
+                className="min-w-40"
               >
                 {applyingMethod ? (
                   <span className="flex items-center gap-2">
@@ -587,14 +723,43 @@ export default function MissingValuesPage() {
 
       {/* No missing values */}
       {!hasMissingValues && (
-        <Card className="border-green-200 bg-green-50">
+        <Card className="border-2 border-green-200 bg-green-50/50 shadow-lg">
           <CardContent className="pt-6">
-            <div className="text-center space-y-4">
-              <p className="text-green-900 font-medium">✓ Your dataset has no missing values!</p>
-              <button onClick={handleDownload} disabled={isDownloading}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-green-600 hover:bg-green-700 disabled:opacity-40 text-white text-sm font-medium transition-colors">
-                {isDownloading ? 'Downloading...' : '⬇ Download Dataset'}
-              </button>
+            <div className="flex flex-col items-center justify-center space-y-4 py-4">
+              <div className="rounded-full bg-green-100 p-4">
+                <svg className="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div className="text-center space-y-2">
+                <h3 className="text-xl font-semibold text-green-900">Perfect! No Missing Values Found</h3>
+                <p className="text-sm text-green-700/80 max-w-md">
+                  Your dataset is complete and ready to use
+                </p>
+              </div>
+              <Button
+                onClick={handleDownload}
+                disabled={isDownloading}
+                size="lg"
+                className="mt-2 min-w-50 h-12 text-base font-medium shadow-md hover:shadow-lg transition-all"
+              >
+                {isDownloading ? (
+                  <span className="flex items-center gap-2">
+                    <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                    </svg>
+                    Downloading...
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-2">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    Download Dataset
+                  </span>
+                )}
+              </Button>
             </div>
           </CardContent>
         </Card>
