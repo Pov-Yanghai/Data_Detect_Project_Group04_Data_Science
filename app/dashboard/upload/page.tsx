@@ -7,6 +7,7 @@ import { Progress } from '@/components/ui/progress'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { uploadFile } from '@/lib/api'
 import { useRouter } from 'next/navigation'
+import { FolderOpen, CheckCircle, Check, Upload } from 'lucide-react'
 
 export default function UploadPage() {
   const router = useRouter()
@@ -147,7 +148,7 @@ export default function UploadPage() {
                     : 'border-border bg-muted/30'
                 }`}
               >
-                <div className="mb-4 text-4xl">📁</div>
+                <div className="mb-4 flex justify-center"><FolderOpen className="h-12 w-12 text-muted-foreground" /></div>
                 <p className="font-medium text-foreground">
                   {file ? file.name : 'Drag your file here'}
                 </p>
@@ -180,7 +181,7 @@ export default function UploadPage() {
               {file && (
                 <div className="mt-4 space-y-2">
                   <div className="rounded-lg bg-green-50 p-3 text-sm">
-                    <p className="font-medium text-green-900">✓ File selected</p>
+                    <p className="font-medium text-green-900 flex items-center gap-1"><CheckCircle className="h-4 w-4" /> File selected</p>
                     <p className="text-green-700">{file.name} ({(file.size / 1024).toFixed(2)} KB)</p>
                   </div>
                   <Button
@@ -219,9 +220,9 @@ export default function UploadPage() {
               <CardTitle className="text-base">Requirements</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2 text-sm text-muted-foreground">
-              <p>✓ Header row required</p>
-              <p>✓ Max 100 MB file size</p>
-              <p>✓ Consistent column format</p>
+              <p className="flex items-center gap-1"><Check className="h-4 w-4 text-green-600" /> Header row required</p>
+              <p className="flex items-center gap-1"><Check className="h-4 w-4 text-green-600" /> Max 100 MB file size</p>
+              <p className="flex items-center gap-1"><Check className="h-4 w-4 text-green-600" /> Consistent column format</p>
             </CardContent>
           </Card>
         </div>

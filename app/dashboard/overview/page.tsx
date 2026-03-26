@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { analyzeData } from '@/lib/api'
+import { Info } from 'lucide-react'
 
 interface UploadedFile {
   name: string
@@ -183,7 +184,7 @@ export default function OverviewPage() {
           <div className="space-y-3">
             {stats.recommendations.map((rec: string, idx: number) => (
               <div key={idx} className="flex items-start gap-3 rounded-lg bg-blue-50 p-3 border border-blue-200">
-                <div className="mt-0.5 text-blue-600">ℹ️</div>
+                <Info className="mt-0.5 h-4 w-4 text-blue-600 shrink-0" />
                 <p className="text-sm text-blue-900">{rec}</p>
               </div>
             ))}

@@ -53,6 +53,18 @@ export interface CleanResponse {
   filepath: string;
 }
 
+export interface SingleModelGraphs {
+  line:            string;  // PNG filename
+  scatter:         string;
+  error_histogram: string;
+}
+
+export interface ComparisonGraphs {
+  comparison_r2:       string;
+  comparison_rmse_mae: string;
+  comparison_scatter:  string;
+}
+
 export interface TrainingResult {
   model_type: string;
   training_samples: number;
@@ -68,6 +80,21 @@ export interface TrainingResult {
     error_percentage: number;
   }>;
   feature_importance: Record<string, number> | null;
+  /** Unique ID used to reference this training run in compare-models calls */
+  session_id: string;
+  /** Per-model graph filenames served at /api/graphs/<filename> */
+  graphs: SingleModelGraphs;
+}
+
+export interface CompareSession {
+  session_id: string;
+  model_type: string;
+  metrics: TrainingResult['metrics'];
+}
+
+export interface CompareResult {
+  compare_session_id: string;
+  graphs: ComparisonGraphs;
 }
 
 export async function uploadFile(file: File): Promise<UploadResponse> {
@@ -163,6 +190,50 @@ export async function trainModel(
   }
 
   return response.json();
+}
+
+export interface PredictResult {
+  predicted_value: number;
+  feature_columns: string[];
+  input_used: Record<string, number>;
+}
+
+export async function predictWithModel(
+  session_id: string,
+  input_values: Record<string, number>
+): Promise<PredictResult> {
+  const response = await fetch(`${API_BASE_URL}/train/predict`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ session_id, input_values }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Prediction failed' }));
+    throw new Error(error.detail || error.error || 'Prediction failed');
+  }
+
+  return response.json();
+}
+
+export async function compareModels(sessions: CompareSession[]): Promise<CompareResult> {
+  const response = await fetch(`${API_BASE_URL}/train/compare`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sessions }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Comparison failed' }));
+    throw new Error(error.detail || error.error || 'Comparison failed');
+  }
+
+  return response.json();
+}
+
+/** Build the full URL for a graph image served by the Node backend. */
+export function graphUrl(filename: string): string {
+  return `${API_BASE_URL}/graphs/${encodeURIComponent(filename)}`;
 }
 
 export async function healthCheck(): Promise<boolean> {

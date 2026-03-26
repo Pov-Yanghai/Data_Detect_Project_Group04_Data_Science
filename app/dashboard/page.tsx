@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { BarChart2, AlertTriangle, Target, TrendingUp, Lightbulb } from 'lucide-react'
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -30,7 +31,7 @@ export default function DashboardPage() {
         <Card className="border border-border hover:shadow-lg transition-shadow">
           <CardHeader>
             <div className="flex items-center gap-3">
-              <span className="text-3xl">📊</span>
+              <BarChart2 className="h-8 w-8 text-primary" />
               <div>
                 <CardTitle>Data Overview</CardTitle>
                 <CardDescription>View dataset statistics</CardDescription>
@@ -53,7 +54,7 @@ export default function DashboardPage() {
         <Card className="border border-border hover:shadow-lg transition-shadow">
           <CardHeader>
             <div className="flex items-center gap-3">
-              <span className="text-3xl">⚠️</span>
+              <AlertTriangle className="h-8 w-8 text-primary" />
               <div>
                 <CardTitle>Missing Values</CardTitle>
                 <CardDescription>Analyze data gaps</CardDescription>
@@ -76,7 +77,7 @@ export default function DashboardPage() {
         <Card className="border border-border hover:shadow-lg transition-shadow">
           <CardHeader>
             <div className="flex items-center gap-3">
-              <span className="text-3xl">🎯</span>
+              <Target className="h-8 w-8 text-primary" />
               <div>
                 <CardTitle>Outlier Detection</CardTitle>
                 <CardDescription>Find anomalies</CardDescription>
@@ -99,7 +100,7 @@ export default function DashboardPage() {
         <Card className="border border-border hover:shadow-lg transition-shadow">
           <CardHeader>
             <div className="flex items-center gap-3">
-              <span className="text-3xl">📈</span>
+              <TrendingUp className="h-8 w-8 text-primary" />
               <div>
                 <CardTitle>Distribution Analysis</CardTitle>
                 <CardDescription>Analyze data patterns</CardDescription>
@@ -122,7 +123,7 @@ export default function DashboardPage() {
 
       {/* Info Section */}
       <section className="rounded-lg border border-border bg-muted/30 p-6">
-        <h3 className="font-semibold text-foreground">💡 Pro Tips</h3>
+        <h3 className="font-semibold text-foreground flex items-center gap-2"><Lightbulb className="h-5 w-5 text-primary" /> Pro Tips</h3>
         <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
           <li>• Start with Data Overview to understand your dataset structure</li>
           <li>• Use Missing Values analysis to identify data quality issues</li>
