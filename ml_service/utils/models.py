@@ -77,6 +77,7 @@ def train_model(df: pd.DataFrame, model_type: str, feature_columns: List[str], t
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
     # Only scale for models that actually need it
+    scaler = None  # initialised here so it's always defined
     if model_type in ['linear_regression', 'svm']:
         scaler = StandardScaler()
         X_train_final = scaler.fit_transform(X_train)
@@ -161,5 +162,14 @@ def train_model(df: pd.DataFrame, model_type: str, feature_columns: List[str], t
             }
         },
         'predictions':        predictions[:20],
-        'feature_importance': feature_importance
+        'feature_importance': feature_importance,
+        # Internal key used by the train route to generate graphs and persist the
+        # fitted model for later /predict calls.  Removed before client response.
+        '_plot_data': {
+            'actuals':          [float(v) for v in y_test.values],
+            'predictions':      [float(v) for v in y_pred_test],
+            '_trained_model':   model,
+            '_trained_scaler':  scaler,          # None for Random Forest
+            '_feature_columns': feature_columns,
+        },
     }

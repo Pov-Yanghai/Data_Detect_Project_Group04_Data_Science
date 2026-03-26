@@ -1,5 +1,6 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 import shutil
 import os
 import pandas as pd
@@ -27,6 +28,11 @@ app.add_middleware(
 # Upload directory — create if it doesn't exist
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+# Graphs directory — served as static files at /graphs/<filename>
+GRAPHS_DIR = "graphs"
+os.makedirs(GRAPHS_DIR, exist_ok=True)
+app.mount("/graphs", StaticFiles(directory=GRAPHS_DIR), name="graphs")
 
 # Include routers — no /api prefix since frontend calls http://localhost:8000 directly
 app.include_router(analyze_router)
