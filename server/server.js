@@ -8,6 +8,7 @@ import uploadRoutes from './routes/upload.js';
 import analyzeRoutes from './routes/analyze.js';
 import cleanRoutes from './routes/clean.js';
 import trainRoutes from './routes/train.js';
+import graphsRoutes from './routes/graphs.js';
 
 dotenv.config();
 
@@ -34,6 +35,7 @@ app.use('/api/upload', uploadRoutes);
 app.use('/api/analyze', analyzeRoutes);
 app.use('/api/clean', cleanRoutes);
 app.use('/api/train', trainRoutes);
+app.use('/api/graphs', graphsRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
