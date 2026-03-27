@@ -1,0 +1,57 @@
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:5000/api}
+    container_name: data-detect-frontend
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+  ml-service:
+    build:
+      context: ./ml_service
+      dockerfile: Dockerfile
+    container_name: ml-service
+    environment:
+      PORT: 8000
+      WEB_CONCURRENCY: 2
+    ports:
+      - "${ML_SERVICE_PORT:-8000}:8000"
+    volumes:
+      - ml_uploads:/app/uploads
+      - ml_graphs:/app/graphs
+      - ml_models:/app/models
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: data-processing-api
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      ML_SERVICE_URL: http://ml-service:8000
+    ports:
+      - "${BACKEND_PORT:-5000}:5000"
+    volumes:
+      - backend_uploads:/app/uploads
+    depends_on:
+      ml-service:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  ml_uploads:
+  ml_graphs:
+  ml_models:
+  backend_uploads:

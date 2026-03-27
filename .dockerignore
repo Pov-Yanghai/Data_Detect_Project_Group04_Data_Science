@@ -1,0 +1,14 @@
+node_modules/
+.next/
+out/
+.git/
+.gitignore
+*.log
+.vscode/
+server/node_modules/
+server/uploads/
+ml_service/venv/
+ml_service/__pycache__/
+ml_service/uploads/
+ml_service/graphs/
+ml_service/models/

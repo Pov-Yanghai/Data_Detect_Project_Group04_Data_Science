@@ -1,0 +1,19 @@
+# Local and generated artifacts
+node_modules
+.next
+.git
+
+# Non-frontend services and runtime data
+server
+ml_service
+
+# Docker files
+Dockerfile.frontend
+docker-compose.yml
+server/Dockerfile
+ml_service/Dockerfile
+
+# Logs and env files
+*.log
+.env
+.env.local
