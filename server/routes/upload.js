@@ -3,6 +3,7 @@ import { upload } from '../middleware/upload.js';
 import path from 'path';
 import XLSX from 'xlsx';
 import { readFileSync } from 'fs';
+import { readFile, unlink } from 'fs/promises';
 import Papa from 'papaparse';
 
 const router = express.Router();
@@ -40,16 +41,42 @@ router.post('/', upload.single('file'), async (req, res, next) => {
       return res.status(400).json({ error: 'Unsupported file type' });
     }
 
-    const { columns, rowCount } = parseFileMeta(req.file.path);
+    // Forward the uploaded file to the ML service so the returned filepath
+    // points to storage accessible by /analyze, /clean, and /train endpoints.
+    const fileBuffer = await readFile(req.file.path);
+    const form = new FormData();
+    form.append(
+      'file',
+      new Blob([fileBuffer], { type: req.file.mimetype || 'application/octet-stream' }),
+      req.file.originalname
+    );
+
+    const mlResponse = await fetch(`${req.mlServiceUrl}/upload`, {
+      method: 'POST',
+      body: form,
+    });
+
+    const mlPayload = await mlResponse.json().catch(() => ({ detail: 'ML upload failed' }));
+
+    if (!mlResponse.ok) {
+      return res.status(mlResponse.status).json({
+        success: false,
+        error: mlPayload.detail || mlPayload.error || 'Upload failed',
+      });
+    }
+
+    // Cleanup temporary backend file after ML service has accepted it.
+    await unlink(req.file.path).catch(() => {});
 
     res.json({
       success: true,
-      filename: req.file.originalname,
-      filepath: req.file.path,
-      size: req.file.size,
+      filename: mlPayload.filename || req.file.originalname,
+      filepath: mlPayload.filepath,
+      size: mlPayload.size || req.file.size,
       fileType: ext,
-      columns,
-      rowCount,
+      columns: mlPayload.columns || [],
+      rowCount: mlPayload.rowCount || 0,
+      preview: mlPayload.preview || [],
     });
 
   } catch (err) {
