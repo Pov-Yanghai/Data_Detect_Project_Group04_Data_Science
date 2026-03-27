@@ -19,11 +19,46 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const ML_SERVICE_URL = process.env.ML_SERVICE_URL || 'http://localhost:8000';
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
+const FRONTEND_URLS = process.env.FRONTEND_URLS || '';
 const NODE_ENV = process.env.NODE_ENV || 'development';
 
 // Middleware
+const normalizeOrigin = (value) => (value || '').trim().replace(/\/$/, '');
+const allowedOrigins = [
+  ...FRONTEND_URLS.split(',').map(normalizeOrigin).filter(Boolean),
+  normalizeOrigin(FRONTEND_URL),
+].filter(Boolean);
+
+const isVercelPreview = (origin) => {
+  try {
+    const host = new URL(origin).hostname;
+    return host.endsWith('.vercel.app');
+  } catch {
+    return false;
+  }
+};
+
 const corsOptions = {
-  origin: NODE_ENV === 'production' ? FRONTEND_URL : '*',
+  origin: (origin, callback) => {
+    if (NODE_ENV !== 'production') {
+      callback(null, true);
+      return;
+    }
+
+    // Allow non-browser calls (curl, server-to-server, health checks).
+    if (!origin) {
+      callback(null, true);
+      return;
+    }
+
+    const normalized = normalizeOrigin(origin);
+    if (allowedOrigins.includes(normalized) || isVercelPreview(normalized)) {
+      callback(null, true);
+      return;
+    }
+
+    callback(new Error(`CORS blocked origin: ${origin}`));
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
@@ -68,5 +103,6 @@ app.listen(PORT, () => {
   console.log(`[v0] Data Processing API running on http://localhost:${PORT}`);
   console.log(`[v0] ML Service URL: ${ML_SERVICE_URL}`);
   console.log(`[v0] Frontend URL: ${FRONTEND_URL}`);
+  console.log(`[v0] Frontend URL list: ${FRONTEND_URLS || '(not set)'}`);
   console.log(`[v0] Node Environment: ${NODE_ENV}`);
 });
