@@ -18,9 +18,17 @@ const __dirname = dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 5000;
 const ML_SERVICE_URL = process.env.ML_SERVICE_URL || 'http://localhost:8000';
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
+const NODE_ENV = process.env.NODE_ENV || 'development';
 
 // Middleware
-app.use(cors());
+const corsOptions = {
+  origin: NODE_ENV === 'production' ? FRONTEND_URL : '*',
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+};
+app.use(cors(corsOptions));
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 
@@ -59,4 +67,6 @@ app.use((req, res) => {
 app.listen(PORT, () => {
   console.log(`[v0] Data Processing API running on http://localhost:${PORT}`);
   console.log(`[v0] ML Service URL: ${ML_SERVICE_URL}`);
+  console.log(`[v0] Frontend URL: ${FRONTEND_URL}`);
+  console.log(`[v0] Node Environment: ${NODE_ENV}`);
 });
