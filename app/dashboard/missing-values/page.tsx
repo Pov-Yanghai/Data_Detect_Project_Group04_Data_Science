@@ -23,6 +23,9 @@ const FILL_METHODS = [
   { id: 'fill_mode',    label: 'Mode' },
   { id: 'forward_fill', label: 'Forward Fill' },
   { id: 'interpolate',  label: 'Interpolate' },
+  { id: 'fill_model_imputed', label: 'Model impute' },
+  { id: 'clean_categorical', label: 'Clean text' },
+  { id: 'drop_outliers_isolation_forest', label: 'Drop outliers (IF)' },
   { id: 'drop_missing', label: 'Drop Row' },
 ]
 
@@ -267,6 +270,8 @@ export default function MissingValuesPage() {
   const [cleanedFilepath, setCleanedFilepath] = useState<string>('')
   const [qualityReport, setQualityReport]     = useState<any>(null)
   const [columnMethods, setColumnMethods]     = useState<Record<string, string>>({})
+  const [contamination, setContamination]   = useState(0.05)
+  const [categoricalLowercase, setCategoricalLowercase] = useState(false)
   const isCleaningRef                         = useRef(false)
 
   useEffect(() => {
@@ -331,7 +336,10 @@ export default function MissingValuesPage() {
 
       for (const [method, cols] of Object.entries(methodGroups)) {
         setApplyingMethod(method)
-        lastResult = await cleanData(uploadedFile.filepath, method, cols)
+        lastResult = await cleanData(uploadedFile.filepath, method, cols, {
+          contamination,
+          categoricalLowercase,
+        })
       }
 
       if (lastResult) {
@@ -354,6 +362,59 @@ export default function MissingValuesPage() {
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Cleaning failed')
+    } finally {
+      isCleaningRef.current = false
+      setApplyingMethod('')
+    }
+  }
+
+  const handleAutoClean = async () => {
+    if (!uploadedFile || !analysis || isCleaningRef.current) return
+
+    const missingCols: string[] = analysis?.missing_values?.columns || []
+
+    if (missingCols.length === 0) return
+
+    isCleaningRef.current = true
+    setError('')
+    setSuccessMessage('')
+    setQualityReport(null)
+
+    try {
+      setApplyingMethod('auto_clean')
+      let lastResult: any = null
+
+      // 1) Model impute numerics + mode fill categoricals (backend decides per-column)
+      lastResult = await cleanData(uploadedFile.filepath, 'fill_model_imputed', missingCols, {
+        categoricalLowercase,
+      })
+
+      // 2) Reduce skewness on ALL numeric columns (after imputation makes numeric-like strings numeric)
+      lastResult = await cleanData(lastResult.filepath, 'handle_skewness')
+
+      // 3) Remove exact duplicate rows across all columns
+      lastResult = await cleanData(lastResult.filepath, 'drop_duplicates')
+
+      if (lastResult) {
+        setSuccessMessage('Auto-clean completed. Download the cleaned dataset below.')
+        setCleanedFilepath(lastResult.filepath)
+        setQualityReport(lastResult.quality)
+
+        const updatedFile = { ...uploadedFile, rowCount: lastResult.cleanedRows }
+        sessionStorage.setItem('uploadedFile', JSON.stringify(updatedFile))
+        setUploadedFile(updatedFile)
+
+        const freshAnalysis = await analyzeData(lastResult.filepath)
+        setAnalysis(freshAnalysis)
+
+        const newDefaults: Record<string, string> = {}
+        freshAnalysis.missing_values.columns.forEach((col: string) => {
+          newDefaults[col] = 'skip'
+        })
+        setColumnMethods(newDefaults)
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Auto-clean failed')
     } finally {
       isCleaningRef.current = false
       setApplyingMethod('')
@@ -391,6 +452,17 @@ export default function MissingValuesPage() {
     percentage: missingData.missing_percentage[col] || 0,
   }))
   const selectedCount = Object.values(columnMethods).filter(m => m !== 'skip').length
+  const selectedMethodSet = new Set(Object.values(columnMethods).filter((m): m is string => m !== 'skip'))
+
+  const columnTypes: Record<string, string> = analysis?.summary?.column_types || {}
+  const hasObjectMissing = missingData.columns.some((col: string) => {
+    const t = (columnTypes[col] || '').toLowerCase()
+    return t === 'object' || t === 'string'
+  })
+
+  const showLowercaseOption =
+    hasObjectMissing || ['fill_model_imputed', 'clean_categorical'].some(m => selectedMethodSet.has(m))
+  const showContaminationOption = selectedMethodSet.has('drop_outliers_isolation_forest')
 
   return (
     <div className="space-y-6 p-6">
@@ -694,6 +766,37 @@ export default function MissingValuesPage() {
               })}
             </div>
 
+            {(showLowercaseOption || showContaminationOption) && (
+              <div className="mt-4 rounded-lg border border-dashed border-border p-4 space-y-3 bg-muted/30">
+                <p className="text-xs font-medium text-muted-foreground">Options for advanced methods</p>
+                {showLowercaseOption && (
+                  <label className="flex items-center gap-2 text-sm cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={categoricalLowercase}
+                      onChange={e => setCategoricalLowercase(e.target.checked)}
+                      className="rounded border-border"
+                    />
+                    Lowercase categorical text (model impute &amp; clean text)
+                  </label>
+                )}
+                {showContaminationOption && (
+                  <label className="flex flex-wrap items-center gap-2 text-sm">
+                    <span>Isolation Forest contamination (expected fraction of outliers)</span>
+                    <input
+                      type="number"
+                      step={0.01}
+                      min={0.001}
+                      max={0.5}
+                      value={contamination}
+                      onChange={e => setContamination(Number(e.target.value))}
+                      className="w-28 rounded-md border border-border bg-background px-2 py-1 text-sm"
+                    />
+                  </label>
+                )}
+              </div>
+            )}
+
             <div className="mt-6 flex items-center justify-between">
               <p className="text-sm text-muted-foreground">
                 {selectedCount > 0
@@ -717,6 +820,21 @@ export default function MissingValuesPage() {
                 ) : `Apply to ${selectedCount} Column${selectedCount !== 1 ? 's' : ''}`}
               </Button>
             </div>
+
+            <div className="mt-3">
+              <Button
+                onClick={handleAutoClean}
+                disabled={!!applyingMethod || !analysis?.missing_values?.columns?.length}
+                className="w-full"
+                size="lg"
+              >
+                {applyingMethod === 'auto_clean'
+                  ? 'Auto cleaning...'
+                  : 'Auto Clean '}
+              </Button>
+            </div>
+
+            {/* Duplicates are handled inside Auto Clean */}
           </CardContent>
         </Card>
       )}
