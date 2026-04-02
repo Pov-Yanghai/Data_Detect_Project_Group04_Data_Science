@@ -38,6 +38,24 @@ export interface AnalysisResult {
       columns: Record<string, any>;
       total_outliers: number;
     };
+    isolation_forest?: {
+      method: string;
+      scope: string;
+      columns: Record<string, any>;
+      total_outliers: number;
+      rows_flagged: number;
+      outlier_fraction: number;
+      n_features_used: number;
+      contamination: number;
+      outlier_indices: number[];
+      note: string;
+    };
+  };
+  outlier_comparison?: {
+    iqr_total_cell_outliers: number;
+    zscore_total_cell_outliers: number;
+    isolation_forest_rows_flagged: number;
+    interpretation: string;
   };
   distributions: Record<string, any>;
   recommendations: string[];
@@ -132,7 +150,8 @@ export async function analyzeData(filepath: string): Promise<AnalysisResult> {
 export async function cleanData(
   filepath: string,
   cleaningMethod: string,
-  columns?: string[],   // 
+  columns?: string[],
+  options?: { contamination?: number; categoricalLowercase?: boolean }
 ): Promise<CleanResponse> {
   const response = await fetch(`${API_BASE_URL}/clean`, {
     method: 'POST',
@@ -141,6 +160,8 @@ export async function cleanData(
       filepath,
       cleaningMethod,
       ...(columns && columns.length > 0 ? { columns } : {}),
+      ...(options?.contamination != null ? { contamination: options.contamination } : {}),
+      ...(options?.categoricalLowercase != null ? { categorical_lowercase: options.categoricalLowercase } : {}),
     }),
   });
 

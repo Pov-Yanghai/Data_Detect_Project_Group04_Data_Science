@@ -18,7 +18,7 @@ export default function OutlierDetectionPage() {
   const [error, setError] = useState<string>('')
   const [uploadedFile, setUploadedFile] = useState<UploadedFile | null>(null)
   const [analysis, setAnalysis] = useState<any>(null)
-  const [method, setMethod] = useState<'iqr' | 'zscore'>('iqr')
+  const [method, setMethod] = useState<'iqr' | 'zscore' | 'isolation_forest'>('iqr')
 
   useEffect(() => {
     const loadData = async () => {
@@ -67,7 +67,25 @@ export default function OutlierDetectionPage() {
     return <div className="p-6 text-center text-muted-foreground">No data available</div>
   }
 
-  const outlierData = method === 'iqr' ? analysis.outliers.iqr : analysis.outliers.zscore
+  const outlierData =
+    method === 'iqr'
+      ? analysis.outliers.iqr
+      : method === 'zscore'
+        ? analysis.outliers.zscore
+        : analysis.outliers.isolation_forest ?? {
+            method: 'Isolation Forest',
+            scope: 'multivariate',
+            columns: {},
+            total_outliers: 0,
+            rows_flagged: 0,
+            outlier_fraction: 0,
+            n_features_used: 0,
+            contamination: 0.05,
+            outlier_indices: [],
+            note: 'Run analysis again to load Isolation Forest results.',
+          }
+
+  const comparison = analysis.outlier_comparison
 
   return (
     <div className="space-y-6 p-6">
@@ -77,6 +95,31 @@ export default function OutlierDetectionPage() {
           Identify and analyze outliers in your dataset using statistical methods
         </p>
       </section>
+
+      {comparison && (
+        <Card className="border-blue-100 bg-blue-50/40">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">How the three methods compare</CardTitle>
+            <CardDescription>{comparison.interpretation}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-3 sm:grid-cols-3 text-sm">
+              <div className="rounded-lg border bg-background p-3">
+                <p className="text-muted-foreground text-xs">IQR (cell count)</p>
+                <p className="text-2xl font-semibold">{comparison.iqr_total_cell_outliers.toLocaleString()}</p>
+              </div>
+              <div className="rounded-lg border bg-background p-3">
+                <p className="text-muted-foreground text-xs">Z-score (cell count)</p>
+                <p className="text-2xl font-semibold">{comparison.zscore_total_cell_outliers.toLocaleString()}</p>
+              </div>
+              <div className="rounded-lg border bg-background p-3">
+                <p className="text-muted-foreground text-xs">Isolation Forest (rows)</p>
+                <p className="text-2xl font-semibold">{comparison.isolation_forest_rows_flagged.toLocaleString()}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Method Selection */}
       <Card>
@@ -106,40 +149,78 @@ export default function OutlierDetectionPage() {
             >
               Z-Score Method
             </button>
+            <button
+              onClick={() => setMethod('isolation_forest')}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                method === 'isolation_forest'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
+              }`}
+            >
+              Isolation Forest
+            </button>
           </div>
           <p className="mt-4 text-sm text-muted-foreground">
             {method === 'iqr'
               ? 'IQR (Interquartile Range) method identifies outliers as points beyond 1.5 × IQR from Q1/Q3'
-              : 'Z-Score method identifies outliers as points with |z-score| > 3 (more than 3 standard deviations)'}
+              : method === 'zscore'
+                ? 'Z-Score method identifies outliers as points with |z-score| > 3 (more than 3 standard deviations)'
+                : 'Isolation Forest is a multivariate method: it labels whole rows using all numeric columns together (expected contamination is tunable in cleaning).'}
           </p>
         </CardContent>
       </Card>
 
       {/* Summary Statistics */}
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className={`grid gap-4 ${method === 'isolation_forest' ? 'md:grid-cols-3' : 'md:grid-cols-2'}`}>
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Outliers Detected</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              {method === 'isolation_forest' ? 'Rows flagged' : 'Total Outliers Detected'}
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-foreground">{outlierData.total_outliers}</div>
-            <p className="text-xs text-muted-foreground mt-1">Using {method.toUpperCase()} method</p>
+            <div className="text-3xl font-bold text-foreground">
+              {method === 'isolation_forest' ? outlierData.rows_flagged : outlierData.total_outliers}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {method === 'isolation_forest' ? 'Multivariate outlier rows' : `Using ${method.replace('_', ' ')} method`}
+            </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Affected Columns</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              {method === 'isolation_forest' ? 'Share of rows' : 'Affected Columns'}
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-foreground">{Object.keys(outlierData.columns).length}</div>
-            <p className="text-xs text-muted-foreground mt-1">columns with outliers</p>
+            <div className="text-3xl font-bold text-foreground">
+              {method === 'isolation_forest'
+                ? `${(outlierData.outlier_fraction * 100).toFixed(2)}%`
+                : Object.keys(outlierData.columns).length}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {method === 'isolation_forest' ? 'of dataset' : 'columns with outliers'}
+            </p>
           </CardContent>
         </Card>
+
+        {method === 'isolation_forest' && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Numeric features used</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-foreground">{outlierData.n_features_used}</div>
+              <p className="text-xs text-muted-foreground mt-1">contamination ≈ {outlierData.contamination}</p>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Outliers by Column */}
-      {Object.keys(outlierData.columns).length > 0 ? (
+      {method !== 'isolation_forest' && Object.keys(outlierData.columns).length > 0 ? (
         <Card>
           <CardHeader>
             <CardTitle>Outliers by Column</CardTitle>
@@ -182,6 +263,26 @@ export default function OutlierDetectionPage() {
             </div>
           </CardContent>
         </Card>
+      ) : method === 'isolation_forest' ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Isolation Forest details</CardTitle>
+            <CardDescription>{outlierData.note}</CardDescription>
+          </CardHeader>
+          <CardContent className="text-sm text-muted-foreground space-y-2">
+            <p>
+              This method does not produce a per-column table: each row gets a single inlier/outlier label from an
+              ensemble of trees on the numeric feature space.
+            </p>
+            {outlierData.outlier_indices?.length > 0 && (
+              <p>
+                <span className="font-medium text-foreground">Sample row indices (0-based):</span>{' '}
+                {outlierData.outlier_indices.slice(0, 20).join(', ')}
+                {outlierData.outlier_indices.length > 20 ? ' …' : ''}
+              </p>
+            )}
+          </CardContent>
+        </Card>
       ) : (
         <Card className="border-green-200 bg-green-50">
           <CardContent className="pt-6">
@@ -210,7 +311,7 @@ export default function OutlierDetectionPage() {
                 values
               </p>
             </div>
-          ) : (
+          ) : method === 'zscore' ? (
             <div className="space-y-3 text-sm text-muted-foreground">
               <p>
                 <span className="font-medium text-foreground">Z-Score:</span> Measures how many standard deviations away
@@ -221,6 +322,17 @@ export default function OutlierDetectionPage() {
               </p>
               <p>
                 <span className="font-medium text-foreground">Best for:</span> Normal distributions, statistical analysis
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3 text-sm text-muted-foreground">
+              <p>
+                <span className="font-medium text-foreground">Isolation Forest:</span> Builds random trees; short paths
+                indicate easier-to-separate points, often outliers in feature space.
+              </p>
+              <p>
+                <span className="font-medium text-foreground">Best for:</span> Multivariate anomalies, when no single
+                column looks extreme but the combination is unusual.
               </p>
             </div>
           )}

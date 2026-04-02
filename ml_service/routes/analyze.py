@@ -2,16 +2,30 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 import pandas as pd
+import numpy as np
 import os
 
 from utils.data_processing import (
     get_data_summary,
     analyze_missing_values,
     detect_outliers,
+    detect_outliers_isolation_forest,
+    compare_outlier_methods,
     analyze_distribution
 )
 
 router = APIRouter()
+
+
+def sanitize_for_json(obj: Any) -> Any:
+    """Convert NaN/inf floats into None recursively (Starlette disallows NaN in JSON)."""
+    if isinstance(obj, dict):
+        return {k: sanitize_for_json(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [sanitize_for_json(v) for v in obj]
+    if isinstance(obj, (float, np.floating)):
+        return None if not np.isfinite(obj) else float(obj)
+    return obj
 
 
 class AnalyzeRequest(BaseModel):
@@ -41,24 +55,32 @@ async def analyze(request: AnalyzeRequest):
         # Analyze missing values
         missing_values = analyze_missing_values(df)
 
-        # Detect outliers (both IQR and Z-Score)
+        # Detect outliers: IQR, Z-Score (per-column cells), Isolation Forest (multivariate rows)
         outliers_iqr = detect_outliers(df, method='iqr')
         outliers_zscore = detect_outliers(df, method='zscore')
+        outliers_isolation_forest = detect_outliers_isolation_forest(df)
+
+        outlier_comparison = compare_outlier_methods(
+            outliers_iqr, outliers_zscore, outliers_isolation_forest
+        )
 
         # Analyze distribution
         distributions = analyze_distribution(df)
 
         # Return directly — no wrapper object
-        return {
+        response = {
             'summary': summary,
             'missing_values': missing_values,
             'outliers': {
                 'iqr': outliers_iqr,
-                'zscore': outliers_zscore
+                'zscore': outliers_zscore,
+                'isolation_forest': outliers_isolation_forest,
             },
+            'outlier_comparison': outlier_comparison,
             'distributions': distributions,
             'recommendations': generate_recommendations(summary, missing_values, outliers_iqr)
         }
+        return sanitize_for_json(response)
 
     except HTTPException:
         raise

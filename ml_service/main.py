@@ -4,6 +4,7 @@ from fastapi.staticfiles import StaticFiles
 import shutil
 import os
 import pandas as pd
+import numpy as np
 import uuid
 
 from routes.analyze import router as analyze_router
@@ -65,7 +66,18 @@ async def upload_file(file: UploadFile = File(...)):
             df = pd.read_excel(filepath)
 
         # Preview — first 5 rows, convert to JSON-safe format
-        preview = df.head(5).where(pd.notnull(df.head(5)), None).to_dict(orient='records')
+        preview_df = df.head(5).copy()
+        # Replace non-finite floats so the response is JSON compliant (Starlette forbids NaN/inf)
+        preview_df = preview_df.replace([np.inf, -np.inf], np.nan)
+        preview_df = preview_df.where(pd.notnull(preview_df), None)
+
+        preview = preview_df.to_dict(orient='records')
+
+        # Safety pass: convert any remaining NaN/inf scalars to None
+        for row in preview:
+            for k, v in list(row.items()):
+                if isinstance(v, (float, np.floating)) and not np.isfinite(v):
+                    row[k] = None
 
         return {
             'success': True,

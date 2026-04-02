@@ -1,18 +1,38 @@
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 import pandas as pd
 import numpy as np
 import os
 
+from utils.data_processing import (
+    model_based_impute_dataframe,
+    clean_categorical_strings,
+    isolation_forest_outlier_mask,
+    transform_skewness,
+)
+
 router = APIRouter()
+
+
+def sanitize_for_json(obj: Any) -> Any:
+    """Convert NaN/inf floats into None recursively (Starlette disallows NaN in JSON)."""
+    if isinstance(obj, dict):
+        return {k: sanitize_for_json(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [sanitize_for_json(v) for v in obj]
+    if isinstance(obj, (float, np.floating)):
+        return None if not np.isfinite(obj) else float(obj)
+    return obj
 
 
 class CleanRequest(BaseModel):
     filepath: str
     cleaningMethod: str
     columns: Optional[List[str]] = None
+    contamination: float = Field(default=0.05, ge=0.001, le=0.5)
+    categorical_lowercase: bool = False
 
 
 def calculate_quality_report(df_before: pd.DataFrame, df_after: pd.DataFrame) -> Dict[str, Any]:
@@ -188,7 +208,12 @@ async def clean_data(request: CleanRequest):
             summary = f"Applied forward/backward fill"
 
         elif request.cleaningMethod == 'drop_duplicates':
-            df_cleaned   = df_cleaned.drop_duplicates()
+            # If columns are provided, treat them as the duplication key; otherwise remove exact duplicate rows.
+            df_cleaned = (
+                df_cleaned.drop_duplicates(subset=target_cols)
+                if target_cols
+                else df_cleaned.drop_duplicates()
+            )
             removed_rows = original_rows - len(df_cleaned)
             summary      = f"Removed {removed_rows} duplicate rows"
 
@@ -199,6 +224,49 @@ async def clean_data(request: CleanRequest):
                     df_cleaned[col] = df_cleaned[col].interpolate(method='linear')
             removed_rows = 0
             summary = f"Interpolated missing values"
+
+        elif request.cleaningMethod == 'fill_model_imputed':
+            df_cleaned, impute_summary = model_based_impute_dataframe(
+                df_cleaned,
+                columns=target_cols,
+                categorical_lowercase=bool(request.categorical_lowercase),
+            )
+            removed_rows = 0
+            summary = impute_summary
+
+        elif request.cleaningMethod == 'clean_categorical':
+            cols = target_cols or list(df_cleaned.columns)
+            df_cleaned = clean_categorical_strings(
+                df_cleaned,
+                columns=cols,
+                lowercase=bool(request.categorical_lowercase),
+            )
+            removed_rows = 0
+            summary = "Normalized categorical text (strip, collapse spaces, empty to missing)"
+
+        elif request.cleaningMethod == 'drop_outliers_isolation_forest':
+            cont = request.contamination
+            mask = isolation_forest_outlier_mask(
+                df_cleaned, contamination=cont, columns=target_cols
+            )
+            n_flag = int(mask.sum())
+            df_cleaned = df_cleaned.loc[~mask].reset_index(drop=True)
+            removed_rows = n_flag
+            summary = (
+                f"Removed {n_flag} rows flagged as multivariate outliers (Isolation Forest, contamination={cont})"
+            )
+
+        elif request.cleaningMethod == 'handle_skewness':
+            # Reduce skewness for selected numeric columns (or all numeric if columns not provided)
+            cols = target_cols or list(df_cleaned.select_dtypes(include=[np.number]).columns)
+            df_cleaned, skew_summary = transform_skewness(
+                df_cleaned,
+                columns=cols,
+                skew_threshold=0.2,
+                min_samples=5,
+            )
+            removed_rows = 0
+            summary = skew_summary
 
         else:
             raise HTTPException(status_code=400, detail=f"Unknown cleaning method: {request.cleaningMethod}")
@@ -212,7 +280,7 @@ async def clean_data(request: CleanRequest):
         # Calculate quality report
         quality_report = calculate_quality_report(df_before, df_cleaned)
 
-        return {
+        response = {
             'success':      True,
             'summary':      summary,
             'originalRows': original_rows,
@@ -222,6 +290,7 @@ async def clean_data(request: CleanRequest):
             'filepath':     request.filepath,
             'quality':      quality_report,
         }
+        return sanitize_for_json(response)
 
     except HTTPException:
         raise
