@@ -389,10 +389,16 @@ export default function MissingValuesPage() {
         categoricalLowercase,
       })
 
-      // 2) Reduce skewness on ALL numeric columns (after imputation makes numeric-like strings numeric)
+      // 2) Drop multivariate outlier rows (Isolation Forest on all numeric columns; contamination from UI)
+      lastResult = await cleanData(lastResult.filepath, 'drop_outliers_isolation_forest', undefined, {
+        contamination,
+        categoricalLowercase,
+      })
+
+      // 3) Reduce skewness on ALL numeric columns
       lastResult = await cleanData(lastResult.filepath, 'handle_skewness')
 
-      // 3) Remove exact duplicate rows across all columns
+      // 4) Remove exact duplicate rows across all columns
       lastResult = await cleanData(lastResult.filepath, 'drop_duplicates')
 
       if (lastResult) {
@@ -462,7 +468,9 @@ export default function MissingValuesPage() {
 
   const showLowercaseOption =
     hasObjectMissing || ['fill_model_imputed', 'clean_categorical'].some(m => selectedMethodSet.has(m))
-  const showContaminationOption = selectedMethodSet.has('drop_outliers_isolation_forest')
+  // Shown for per-column IF method and for Auto Clean (which runs IF after impute)
+  const showContaminationOption =
+    hasMissingValues || selectedMethodSet.has('drop_outliers_isolation_forest')
 
   return (
     <div className="space-y-6 p-6">
